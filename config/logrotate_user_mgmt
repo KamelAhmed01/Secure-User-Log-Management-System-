@@ -1,0 +1,16 @@
+/var/log/user_mgmt.log {
+    # Source frequency from config.sh during installation, default to weekly
+    weekly
+    # Source keep count from config.sh, default to 4
+    rotate 4
+    missingok
+    notifempty
+    compress
+    delaycompress
+    sharedscripts
+    postrotate
+        # Reload services if necessary, though for a simple log file, not usually needed
+        # systemctl reload rsyslog > /dev/null 2>&1 || true
+    endscript
+    create 0640 root adm
+}

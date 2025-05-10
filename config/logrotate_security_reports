@@ -1,0 +1,12 @@
+/var/log/security_reports/*.txt {
+    # Source frequency from config.sh during installation, default to daily
+    daily
+    # Source keep count from config.sh, default to 30
+    rotate 30
+    missingok
+    notifempty
+    compress
+    delaycompress
+    # No sharedscripts or postrotate needed typically for simple text reports
+    create 0640 root adm # Create with restricted permissions
+}
