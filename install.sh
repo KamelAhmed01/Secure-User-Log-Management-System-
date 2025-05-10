@@ -81,47 +81,51 @@ show_section_header() {
 spinner() {
     local pid=$1
     local delay=0.1
-    local spinstr='|/-\'
+    local spinstr='⣾⣽⣻⢿⡿⣟⣯⣷'
+    
+    printf "${CYAN}▹ ${RESET}${BOLD}Working${RESET} "
+    
     while [ "$(ps a | awk '{print $1}' | grep -w $pid)" ]; do
         local temp=${spinstr#?}
-        printf " [%c]  " "$spinstr"
+        printf "${BRIGHT_CYAN}%c${RESET}" "$spinstr"
         local spinstr=$temp${spinstr%"$temp"}
         sleep $delay
-        printf "\b\b\b\b\b\b"
+        printf "\b"
     done
-    printf "    \b\b\b\b"
+    
+    printf "${BRIGHT_GREEN} ✓${RESET}\n"
 }
 
 # Progress bar for longer operations
 progress_bar() {
-    local duration=$1
-    local progress=0
-    local total=20
-    local step=$((duration / total))
+    local percent=$1
+    local width=40
+    local filled=$(($width * $percent / 100))
+    local empty=$(($width - $filled))
     
-    echo -ne "${GRAY}[${RESET}"
-    for ((i=0; i<total; i++)); do
-        echo -ne "${GRAY}░${RESET}"
-    done
-    echo -ne "${GRAY}]${RESET} 0%"
+    printf "\r${CYAN}▹ ${RESET}Processing: ["
     
-    for ((i=0; i<total; i++)); do
-        sleep $step
-        progress=$((i+1))
-        percent=$((progress * 100 / total))
-        echo -ne "\r${GRAY}[${RESET}"
-        
-        for ((j=0; j<progress; j++)); do
-            echo -ne "${GREEN}█${RESET}"
-        done
-        
-        for ((j=progress; j<total; j++)); do
-            echo -ne "${GRAY}░${RESET}"
-        done
-        
-        echo -ne "${GRAY}]${RESET} ${percent}%"
+    # Draw filled portion with gradient colors
+    for ((i=0; i<$filled; i++)); do
+        if [ $i -lt $(($filled/3)) ]; then
+            printf "${BRIGHT_GREEN}█${RESET}"
+        elif [ $i -lt $(($filled*2/3)) ]; then
+            printf "${GREEN}█${RESET}"
+        else
+            printf "${BRIGHT_CYAN}█${RESET}"
+        fi
     done
-    echo
+    
+    # Draw empty portion
+    for ((i=0; i<$empty; i++)); do
+        printf "${GRAY}░${RESET}"
+    done
+    
+    printf "] ${BRIGHT_WHITE}%d%%${RESET}" $percent
+    
+    if [ $percent -eq 100 ]; then
+        printf " ${BRIGHT_GREEN}✓${RESET}\n"
+    fi
 }
 
 # --- Helper Functions ---
@@ -173,6 +177,62 @@ ask_yes_no() {
             echo -e "${YELLOW}⚠ Invalid input. Please answer '${GREEN}y${YELLOW}' or '${RED}n${YELLOW}'.${RESET}"
         fi
     done
+}
+
+# Add this function after the ask_yes_no function
+select_from_options() {
+    local prompt="$1"
+    shift
+    local options=("$@")
+    local selected=0
+    local key
+    
+    # Hide cursor
+    echo -ne "\e[?25l"
+    
+    while true; do
+        echo -e "\n${BRIGHT_WHITE}${BOLD}$prompt${RESET}\n"
+        
+        # Display options with selection indicator
+        for i in "${!options[@]}"; do
+            if [ $i -eq $selected ]; then
+                echo -e "${BRIGHT_GREEN}▶ ${BRIGHT_WHITE}${BOLD}${options[$i]}${RESET}"
+            else
+                echo -e "  ${GRAY}${options[$i]}${RESET}"
+            fi
+        done
+        
+        # Read a single keypress
+        read -s -n 1 key
+        
+        # Handle key press
+        case "$key" in
+            A|k) # Up arrow or k
+                if [ $selected -gt 0 ]; then
+                    selected=$((selected-1))
+                fi
+                ;;
+            B|j) # Down arrow or j
+                if [ $selected -lt $((${#options[@]}-1)) ]; then
+                    selected=$((selected+1))
+                fi
+                ;;
+            "") # Enter
+                # Show cursor again
+                echo -ne "\e[?25h"
+                echo
+                return $selected
+                ;;
+        esac
+        
+        # Clear previous menu
+        for ((i=0; i<=${#options[@]}+1; i++)); do
+            echo -ne "\033[1A\033[2K"
+        done
+    done
+    
+    # Show cursor again (in case of unexpected exit)
+    echo -ne "\e[?25h"
 }
 
 # --- Pre-flight Checks ---
@@ -808,20 +868,73 @@ main() {
     sleep 1
     
     check_root
+    
+    # Installation type selection
+    echo -e "\n${YELLOW}${BOLD}[ Installation Type ]${RESET}"
+    divider
+    
+    options=("Express Install (Recommended)" "Custom Install" "Minimal Install")
+    select_from_options "Please select installation type:" "${options[@]}"
+    installation_type=$?
+    
+    case $installation_type in
+        0) 
+            echo -e "${CYAN}▹ ${RESET}Selected ${BOLD}Express Install${RESET}"
+            # Quick install with default options
+            ;;
+        1) 
+            echo -e "${CYAN}▹ ${RESET}Selected ${BOLD}Custom Install${RESET}"
+            # Ask all configuration questions
+            ;;
+        2) 
+            echo -e "${CYAN}▹ ${RESET}Selected ${BOLD}Minimal Install${RESET}"
+            # Skip optional components
+            SKIP_FTP_SETUP=true
+            ;;
+    esac
+    
     check_dependencies
     
-    create_directories
-    copy_files
+    # Show a spinner for the creation of directories
+    echo -ne "${CYAN}▹ ${RESET}Setting up system environment... "
+    (
+        create_directories > /dev/null 2>&1
+        copy_files > /dev/null 2>&1
+    ) &
+    spinner $!
     
-    configure_vsftpd
+    # Continue with visual progress for other installation steps
+    for i in $(seq 10 5 100); do
+        progress_bar $i
+        sleep 0.1
+    done
+    
+    # Run configure functions with proper UI feedback
+    if [ "$SKIP_FTP_SETUP" != true ]; then
+        configure_vsftpd
+    fi
+    
     configure_logrotate
     configure_cron_jobs
+    
+    # Now explicitly set permissions and verify them
+    set_script_permissions
     
     # Interactive configuration of bonus features
     configure_bonus_features_interactive
     
     # Show completion message and next steps
     show_completion_message
+    
+    # Final verification
+    echo -e "\n${BRIGHT_WHITE}${BOLD}Script Execution Test:${RESET}"
+    echo -ne "${CYAN}▹ ${RESET}Testing main script... "
+    if [ -x "$SCRIPTS_DIR/secure_system.sh" ]; then
+        echo -e "${BRIGHT_GREEN}Executable ✓${RESET}"
+    else
+        echo -e "${RED}Not executable ✗${RESET}"
+        echo -e "${YELLOW}Please run: ${BOLD}sudo chmod +x $SCRIPTS_DIR/secure_system.sh${RESET}"
+    fi
 }
 
 main
