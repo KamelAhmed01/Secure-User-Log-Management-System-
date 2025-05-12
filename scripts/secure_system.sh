@@ -4,7 +4,7 @@
 # Provides a menu-driven interface to access various system functions.
 
 # Get the directory where the script is located
-SCRIPT_DIR="$(dirname "$0")"
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 
 # Source configuration and other scripts
 CONFIG_FILE="$SCRIPT_DIR/config.sh"

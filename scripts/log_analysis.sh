@@ -5,7 +5,7 @@
 # and handles bonus features like email reports, weekly summaries, and account locking.
 
 # Source configuration
-CONFIG_FILE="$(dirname "$0")/config.sh"
+CONFIG_FILE="$(dirname "$(readlink -f "$0")")/config.sh"
 if [ -f "$CONFIG_FILE" ]; then
     source "$CONFIG_FILE"
 else

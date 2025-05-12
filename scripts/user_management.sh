@@ -4,7 +4,7 @@
 # Automates user creation, deletion, and modification with password policies and logging.
 
 # Source configuration
-CONFIG_FILE="$(dirname "$0")/config.sh"
+CONFIG_FILE="$(dirname "$(readlink -f "$0")")/config.sh"
 if [ -f "$CONFIG_FILE" ]; then
     source "$CONFIG_FILE"
 else
