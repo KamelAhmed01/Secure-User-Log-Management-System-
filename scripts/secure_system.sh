@@ -267,6 +267,41 @@ handle_main_menu() {
                             echo -e "   - Firewall may be blocking FTP ports (20, 21)"
                             echo -e "   - SELinux/AppArmor may be restricting vsftpd"
                             
+                            if ask_yes_no "Would you like to try the basic configuration fix?" "y"; then
+                                echo -e "${CYAN}▹ ${RESET}Attempting configuration fix..."
+                                
+                                # Backup existing config if it exists
+                                if [ -f "/vsftpd.conf" ]; then
+                                    echo -e "${CYAN}▹ ${RESET}Backing up existing configuration..."
+                                    sudo mv /vsftpd.conf /vsftpd.conf.bak
+                                    if [ $? -eq 0 ]; then
+                                        echo -e "${BRIGHT_GREEN}✓ Backup created: /vsftpd.conf.bak${RESET}"
+                                    else
+                                        echo -e "${BRIGHT_RED}✗ Failed to create backup${RESET}"
+                                        return 1
+                                    fi
+                                fi
+                                
+                                # Create minimal config
+                                echo -e "${CYAN}▹ ${RESET}Creating minimal configuration..."
+                                echo "listen=YES" | sudo tee /vsftpd.conf > /dev/null
+                                if [ $? -eq 0 ]; then
+                                    echo -e "${BRIGHT_GREEN}✓ Basic configuration created${RESET}"
+                                else
+                                    echo -e "${BRIGHT_RED}✗ Failed to create configuration${RESET}"
+                                    return 1
+                                fi
+                                
+                                # Restart service
+                                echo -e "${CYAN}▹ ${RESET}Restarting vsftpd service..."
+                                sudo systemctl restart vsftpd
+                                if systemctl is-active --quiet vsftpd; then
+                                    echo -e "${BRIGHT_GREEN}✓ vsftpd service started successfully with basic configuration${RESET}"
+                                else
+                                    echo -e "${BRIGHT_RED}✗ Service still failing after basic configuration${RESET}"
+                                fi
+                            fi
+                            
                             if ask_yes_no "View recent vsftpd logs?" "y"; then
                                 sudo journalctl -u vsftpd --no-pager -n 20
                             fi
