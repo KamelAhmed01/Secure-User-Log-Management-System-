@@ -135,14 +135,87 @@ handle_main_menu() {
                     read -r -p "Do you want to attempt to start it? (y/n): " start_ftp
                     if [[ "$start_ftp" == "y" || "$start_ftp" == "Y" ]]; then
                         echo -e "${CYAN}Attempting to start vsftpd...${NC}"
+                        
+                        # Add troubleshooting steps before attempting to start
+                        echo -e "${CYAN}Performing pre-start validation checks...${NC}"
+                        
+                        # Check if vsftpd is installed
+                        if ! command -v vsftpd &> /dev/null; then
+                            echo -e "${RED}Error: vsftpd is not installed.${NC}"
+                            echo -e "Please install it with: ${CYAN}sudo apt update && sudo apt install vsftpd${NC}"
+                            pause_and_continue
+                            show_main_menu
+                            continue
+                        fi
+                        
+                        # Check config file existence
+                        if [ ! -f "/etc/vsftpd.conf" ]; then
+                            echo -e "${RED}Error: /etc/vsftpd.conf is missing.${NC}"
+                            echo -e "Please run the installer again or manually create the config file."
+                            pause_and_continue
+                            show_main_menu
+                            continue
+                        fi
+                        
+                        # Get certificate file paths from config
+                        cert_file=$(grep -oP '^rsa_cert_file=\K.*' /etc/vsftpd.conf)
+                        key_file=$(grep -oP '^rsa_private_key_file=\K.*' /etc/vsftpd.conf)
+                        
+                        # Check certificate files
+                        if [ ! -f "$cert_file" ] || [ ! -f "$key_file" ]; then
+                            echo -e "${YELLOW}Warning: SSL certificate files are missing or inaccessible.${NC}"
+                            echo -e "Certificate path: ${CYAN}$cert_file${NC}"
+                            echo -e "Key path: ${CYAN}$key_file${NC}"
+                            
+                            if ask_yes_no "Do you want to regenerate the SSL certificate?" "y"; then
+                                mkdir -p "$(dirname "$cert_file")" 2>/dev/null
+                                
+                                # Generate a new self-signed certificate
+                                echo -e "${CYAN}Generating new SSL certificate...${NC}"
+                                sudo openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+                                    -keyout "$key_file" -out "$cert_file" \
+                                    -subj "/C=XX/ST=State/L=City/O=Organization/CN=localhost" 2>/dev/null
+                                
+                                if [ $? -eq 0 ]; then
+                                    sudo chmod 600 "$key_file" "$cert_file" 2>/dev/null
+                                    echo -e "${GREEN}SSL certificate regenerated successfully.${NC}"
+                                else
+                                    echo -e "${RED}Failed to generate SSL certificate.${NC}"
+                                fi
+                            fi
+                        fi
+                        
+                        # Ensure empty directory exists
+                        if [ ! -d "/var/run/vsftpd/empty" ]; then
+                            echo -e "${YELLOW}Creating missing directory: /var/run/vsftpd/empty${NC}"
+                            sudo mkdir -p /var/run/vsftpd/empty
+                        fi
+                        
+                        # Now attempt to start the service
                         sudo systemctl start vsftpd &
                         local pid=$!
                         show_loading_animation $pid
                         wait $pid
+                        
                         if systemctl is-active --quiet vsftpd; then
                             echo -e "${GREEN}vsftpd service started successfully.${NC}"
                         else
                             echo -e "${RED}Failed to start vsftpd.${NC} Check logs: ${CYAN}sudo journalctl -u vsftpd${NC} or ${CYAN}/var/log/vsftpd.log${NC}"
+                            
+                            # Additional diagnostics
+                            echo -e "\n${CYAN}Diagnostic information:${NC}"
+                            echo -e "${YELLOW}1. Check systemd service status:${NC}"
+                            sudo systemctl status vsftpd --no-pager
+                            
+                            echo -e "\n${YELLOW}2. Common issues and solutions:${NC}"
+                            echo -e "   - SSL certificate paths may be incorrect in /etc/vsftpd.conf"
+                            echo -e "   - Port 21 may be in use by another service"
+                            echo -e "   - Firewall may be blocking FTP ports (20, 21)"
+                            echo -e "   - SELinux/AppArmor may be restricting vsftpd"
+                            
+                            if ask_yes_no "View recent vsftpd logs?" "y"; then
+                                sudo journalctl -u vsftpd --no-pager -n 20
+                            fi
                         fi
                     fi
                 fi
