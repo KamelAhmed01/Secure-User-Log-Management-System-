@@ -13,17 +13,39 @@ LOG_ANALYSIS_SCRIPT="$SCRIPT_DIR/log_analysis.sh"
 ASCII_ART_FILE="$SCRIPT_DIR/../ascii_art.txt" # Path to ASCII art
 LOADING_ANIMATION_SCRIPT="$SCRIPT_DIR/loading_animation.sh"
 
-# --- Color Definitions ---
-RED="\e[0;31m"
-GREEN="\e[0;32m"
-YELLOW="\e[0;33m"
-BLUE="\e[0;34m"
-MAGENTA="\e[0;35m"
-CYAN="\e[0;36m"
-WHITE="\e[0;37m"
-BOLD="\e[1m"
-UNDERLINE="\e[4m"
-NC="\e[0m" # No Color
+# Source colors if available, otherwise define them
+if [ -f "$SCRIPT_DIR/colors.sh" ]; then
+    source "$SCRIPT_DIR/colors.sh"
+else
+    # --- Enhanced Color Definitions ---
+    BOLD="\e[1m"
+    DIM="\e[2m"
+    ITALIC="\e[3m"
+    UNDERLINE="\e[4m"
+    RESET="\e[0m"
+    
+    # Basic colors
+    RED="\e[31m"
+    GREEN="\e[32m"
+    YELLOW="\e[33m"
+    BLUE="\e[34m"
+    MAGENTA="\e[35m"
+    CYAN="\e[36m"
+    WHITE="\e[37m"
+    
+    # Bright colors
+    GRAY="\e[90m"
+    BRIGHT_RED="\e[91m"
+    BRIGHT_GREEN="\e[92m"
+    BRIGHT_YELLOW="\e[93m"
+    BRIGHT_BLUE="\e[94m"
+    BRIGHT_MAGENTA="\e[95m"
+    BRIGHT_CYAN="\e[96m"
+    BRIGHT_WHITE="\e[97m"
+    
+    # Shortcuts for legacy code compatibility
+    NC="$RESET"
+fi
 
 # Check if running as root, as many operations require it
 check_root() {
@@ -61,63 +83,91 @@ source "$LOADING_ANIMATION_SCRIPT"
 
 # --- Helper Functions ---
 pause_and_continue() {
-    echo -e "\n${YELLOW}Press Enter to continue...${NC}"
+    echo -e "\n${BRIGHT_YELLOW}Press Enter to continue...${RESET}"
     read -r
+}
+
+# Custom logo function if the ASCII art file is missing
+show_logo() {
+    if [ -f "$ASCII_ART_FILE" ]; then
+        # Use the colors to enhance the ASCII art file display
+        echo -e "${CYAN}"
+        cat "$ASCII_ART_FILE"
+        echo -e "${BRIGHT_BLUE}                                                                               v1.0.0"
+        echo -e "${RESET}${BOLD}${BRIGHT_WHITE}                  SECURE USER & LOG MANAGEMENT SYSTEM${RESET}"
+        echo -e "${DIM}                           System Interface${RESET}"
+        echo
+        echo -e "${GRAY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+        echo
+    else
+        # Fallback to embedded logo if the file is missing
+        echo -e "${CYAN}"
+        echo -e " ███████╗███████╗ ██████╗██╗   ██╗██████╗ ███████╗    ██╗      ██████╗  ██████╗ ███████╗"
+        echo -e " ██╔════╝██╔════╝██╔════╝██║   ██║██╔══██╗██╔════╝    ██║     ██╔═══██╗██╔════╝ ██╔════╝"
+        echo -e " ███████╗█████╗  ██║     ██║   ██║██████╔╝█████╗      ██║     ██║   ██║██║  ███╗███████╗"
+        echo -e " ╚════██║██╔══╝  ██║     ██║   ██║██╔══██╗██╔══╝      ██║     ██║   ██║██║   ██║╚════██║"
+        echo -e " ███████║███████╗╚██████╗╚██████╔╝██║  ██║███████╗    ███████╗╚██████╔╝╚██████╔╝███████║"
+        echo -e " ╚══════╝╚══════╝ ╚═════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝    ╚══════╝ ╚═════╝  ╚═════╝ ╚══════╝"
+        echo -e "${BRIGHT_BLUE}                                                                               v1.0.0"
+        echo -e "${RESET}${BOLD}${BRIGHT_WHITE}                  SECURE USER & LOG MANAGEMENT SYSTEM${RESET}"
+        echo -e "${DIM}                           System Interface${RESET}"
+        echo
+        echo -e "${GRAY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+        echo
+    fi
 }
 
 # --- Display Menus ---
 
 show_main_menu() {
     clear
-    if [ -f "$ASCII_ART_FILE" ]; then
-        cat "$ASCII_ART_FILE"
-    fi
-    echo -e "\n${BLUE}${BOLD}===============================================${NC}"
-    echo -e " ${MAGENTA}${BOLD}Secure User & Log Management System${NC}"
-    echo -e "${BLUE}${BOLD}===============================================${NC}"
-    echo -e " ${CYAN} (Enhanced Interface)${NC}"
-    echo -e "${BLUE}-----------------------------------------------${NC}"
-    echo -e " ${WHITE}1.${NC} ${GREEN}User Management${NC}"
-    echo -e " ${WHITE}2.${NC} ${GREEN}Log Analysis & Reporting${NC}"
-    echo -e " ${WHITE}3.${NC} ${GREEN}Secure FTP Server Status${NC}"
-    echo -e " ${WHITE}4.${NC} ${GREEN}View System Configuration${NC}"
-    echo -e " ${WHITE}0.${NC} ${RED}Exit${NC}"
-    echo -e "${BLUE}-----------------------------------------------${NC}"
-    read -r -p "Enter your choice [0-4]: " main_choice
+    show_logo
+    echo -e "${BLUE}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e " ${MAGENTA}${BOLD}Secure User & Log Management System${RESET}"
+    echo -e "${BLUE}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e " ${CYAN} (Enhanced Interface)${RESET}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e " ${WHITE}1.${RESET} ${BRIGHT_GREEN}User Management${RESET}"
+    echo -e " ${WHITE}2.${RESET} ${BRIGHT_GREEN}Log Analysis & Reporting${RESET}"
+    echo -e " ${WHITE}3.${RESET} ${BRIGHT_GREEN}Secure FTP Server Status${RESET}"
+    echo -e " ${WHITE}4.${RESET} ${BRIGHT_GREEN}View System Configuration${RESET}"
+    echo -e " ${WHITE}0.${RESET} ${BRIGHT_RED}Exit${RESET}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    read -r -p "$(echo -e "${CYAN}▸${RESET} Enter your choice [0-4]: ")" main_choice
     handle_main_menu "$main_choice"
 }
 
 show_user_management_menu() {
     clear
-    echo -e "${BLUE}${BOLD}-----------------------------------------------${NC}"
-    echo -e " ${MAGENTA}${BOLD} User Management Menu ${NC}"
-    echo -e "${BLUE}${BOLD}-----------------------------------------------${NC}"
-    echo -e " ${WHITE}1.${NC} ${CYAN}Create New User${NC}"
-    echo -e " ${WHITE}2.${NC} ${CYAN}Delete Existing User${NC}"
-    echo -e " ${WHITE}3.${NC} ${CYAN}Modify Existing User${NC}"
-    echo -e " ${WHITE}4.${NC} ${CYAN}List Users${NC}"
-    echo -e " ${WHITE}9.${NC} ${YELLOW}Back to Main Menu${NC}"
-    echo -e " ${WHITE}0.${NC} ${RED}Exit${NC}"
-    echo -e "${BLUE}-----------------------------------------------${NC}"
-    read -r -p "Enter your choice [0-4, 9]: " um_choice
+    echo -e "${BLUE}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e " ${MAGENTA}${BOLD}User Management Menu${RESET}"
+    echo -e "${BLUE}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e " ${WHITE}1.${RESET} ${BRIGHT_CYAN}Create New User${RESET}"
+    echo -e " ${WHITE}2.${RESET} ${BRIGHT_CYAN}Delete Existing User${RESET}"
+    echo -e " ${WHITE}3.${RESET} ${BRIGHT_CYAN}Modify Existing User${RESET}"
+    echo -e " ${WHITE}4.${RESET} ${BRIGHT_CYAN}List Users${RESET}"
+    echo -e " ${WHITE}9.${RESET} ${BRIGHT_YELLOW}Back to Main Menu${RESET}"
+    echo -e " ${WHITE}0.${RESET} ${BRIGHT_RED}Exit${RESET}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    read -r -p "$(echo -e "${CYAN}▸${RESET} Enter your choice [0-4, 9]: ")" um_choice
     handle_user_management_menu "$um_choice"
 }
 
 show_log_analysis_menu() {
     clear
-    echo -e "${BLUE}${BOLD}-----------------------------------------------${NC}"
-    echo -e " ${MAGENTA}${BOLD} Log Analysis & Reporting Menu ${NC}"
-    echo -e "${BLUE}${BOLD}-----------------------------------------------${NC}"
-    echo -e " ${WHITE}1.${NC} ${CYAN}Generate Daily Failed Login Report (Now)${NC}"
-    echo -e " ${WHITE}2.${NC} ${CYAN}View Latest Failed Login Report${NC}"
-    echo -e " ${WHITE}9.${NC} ${YELLOW}Back to Main Menu${NC}"
-    echo -e " ${WHITE}0.${NC} ${RED}Exit${NC}"
-    echo -e "${BLUE}-----------------------------------------------${NC}"
-    read -r -p "Enter your choice [0-2, 9]: " la_choice
+    echo -e "${BLUE}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e " ${MAGENTA}${BOLD}Log Analysis & Reporting Menu${RESET}"
+    echo -e "${BLUE}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e " ${WHITE}1.${RESET} ${BRIGHT_CYAN}Generate Daily Failed Login Report (Now)${RESET}"
+    echo -e " ${WHITE}2.${RESET} ${BRIGHT_CYAN}View Latest Failed Login Report${RESET}"
+    echo -e " ${WHITE}9.${RESET} ${BRIGHT_YELLOW}Back to Main Menu${RESET}"
+    echo -e " ${WHITE}0.${RESET} ${BRIGHT_RED}Exit${RESET}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    read -r -p "$(echo -e "${CYAN}▸${RESET} Enter your choice [0-2, 9]: ")" la_choice
     handle_log_analysis_menu "$la_choice"
 }
 
-# --- Handle Menu Choices ---
+# --- Handle Menu Choices (with updated UI elements) ---
 
 handle_main_menu() {
     case "$1" in
@@ -125,24 +175,27 @@ handle_main_menu() {
         2) show_log_analysis_menu ;; 
         3) 
             clear
-            echo -e "${CYAN}Checking Secure FTP Server (vsftpd) status...${NC}"
+            echo -e "${BLUE}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+            echo -e " ${MAGENTA}${BOLD}Secure FTP Server Status${RESET}"
+            echo -e "${BLUE}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+            echo -e "${CYAN}▹ ${RESET}Checking Secure FTP Server (vsftpd) status..."
             if command -v systemctl &> /dev/null; then
                 if systemctl is-active --quiet vsftpd; then
-                    echo -e "${GREEN}vsftpd service is active (running).${NC}"
+                    echo -e "${BRIGHT_GREEN}✓ vsftpd service is active (running).${RESET}"
                     sudo systemctl status vsftpd --no-pager
                 else
-                    echo -e "${YELLOW}vsftpd service is not active.${NC}"
-                    read -r -p "Do you want to attempt to start it? (y/n): " start_ftp
+                    echo -e "${BRIGHT_YELLOW}⚠ vsftpd service is not active.${RESET}"
+                    read -r -p "$(echo -e "${CYAN}▸${RESET} Do you want to attempt to start it? (y/n): ")" start_ftp
                     if [[ "$start_ftp" == "y" || "$start_ftp" == "Y" ]]; then
-                        echo -e "${CYAN}Attempting to start vsftpd...${NC}"
+                        echo -e "${CYAN}▹ ${RESET}Attempting to start vsftpd..."
                         
                         # Add troubleshooting steps before attempting to start
-                        echo -e "${CYAN}Performing pre-start validation checks...${NC}"
+                        echo -e "${CYAN}▹ ${RESET}Performing pre-start validation checks..."
                         
                         # Check if vsftpd is installed
                         if ! command -v vsftpd &> /dev/null; then
-                            echo -e "${RED}Error: vsftpd is not installed.${NC}"
-                            echo -e "Please install it with: ${CYAN}sudo apt update && sudo apt install vsftpd${NC}"
+                            echo -e "${BRIGHT_RED}✗ Error: vsftpd is not installed.${RESET}"
+                            echo -e "Please install it with: ${BRIGHT_CYAN}sudo apt update && sudo apt install vsftpd${RESET}"
                             pause_and_continue
                             show_main_menu
                             continue
@@ -150,7 +203,7 @@ handle_main_menu() {
                         
                         # Check config file existence
                         if [ ! -f "/etc/vsftpd.conf" ]; then
-                            echo -e "${RED}Error: /etc/vsftpd.conf is missing.${NC}"
+                            echo -e "${BRIGHT_RED}✗ Error: /etc/vsftpd.conf is missing.${RESET}"
                             echo -e "Please run the installer again or manually create the config file."
                             pause_and_continue
                             show_main_menu
@@ -163,51 +216,52 @@ handle_main_menu() {
                         
                         # Check certificate files
                         if [ ! -f "$cert_file" ] || [ ! -f "$key_file" ]; then
-                            echo -e "${YELLOW}Warning: SSL certificate files are missing or inaccessible.${NC}"
-                            echo -e "Certificate path: ${CYAN}$cert_file${NC}"
-                            echo -e "Key path: ${CYAN}$key_file${NC}"
+                            echo -e "${BRIGHT_YELLOW}⚠ Warning: SSL certificate files are missing or inaccessible.${RESET}"
+                            echo -e "Certificate path: ${BRIGHT_CYAN}$cert_file${RESET}"
+                            echo -e "Key path: ${BRIGHT_CYAN}$key_file${RESET}"
                             
                             if ask_yes_no "Do you want to regenerate the SSL certificate?" "y"; then
                                 mkdir -p "$(dirname "$cert_file")" 2>/dev/null
                                 
                                 # Generate a new self-signed certificate
-                                echo -e "${CYAN}Generating new SSL certificate...${NC}"
+                                echo -e "${CYAN}▹ ${RESET}Generating new SSL certificate..."
                                 sudo openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
                                     -keyout "$key_file" -out "$cert_file" \
-                                    -subj "/C=XX/ST=State/L=City/O=Organization/CN=localhost" 2>/dev/null
+                                    -subj "/C=XX/ST=State/L=City/O=Organization/CN=localhost" 2>/dev/null &
+                                local pid=$!
+                                show_loading_animation $pid "Generating SSL certificate"
                                 
                                 if [ $? -eq 0 ]; then
                                     sudo chmod 600 "$key_file" "$cert_file" 2>/dev/null
-                                    echo -e "${GREEN}SSL certificate regenerated successfully.${NC}"
+                                    echo -e "${BRIGHT_GREEN}✓ SSL certificate regenerated successfully.${RESET}"
                                 else
-                                    echo -e "${RED}Failed to generate SSL certificate.${NC}"
+                                    echo -e "${BRIGHT_RED}✗ Failed to generate SSL certificate.${RESET}"
                                 fi
                             fi
                         fi
                         
                         # Ensure empty directory exists
                         if [ ! -d "/var/run/vsftpd/empty" ]; then
-                            echo -e "${YELLOW}Creating missing directory: /var/run/vsftpd/empty${NC}"
+                            echo -e "${BRIGHT_YELLOW}⚠ Creating missing directory: /var/run/vsftpd/empty${RESET}"
                             sudo mkdir -p /var/run/vsftpd/empty
                         fi
                         
                         # Now attempt to start the service
                         sudo systemctl start vsftpd &
                         local pid=$!
-                        show_loading_animation $pid
-                        wait $pid
+                        show_loading_animation $pid "Starting vsftpd service"
                         
                         if systemctl is-active --quiet vsftpd; then
-                            echo -e "${GREEN}vsftpd service started successfully.${NC}"
+                            echo -e "${BRIGHT_GREEN}✓ vsftpd service started successfully.${RESET}"
                         else
-                            echo -e "${RED}Failed to start vsftpd.${NC} Check logs: ${CYAN}sudo journalctl -u vsftpd${NC} or ${CYAN}/var/log/vsftpd.log${NC}"
+                            echo -e "${BRIGHT_RED}✗ Failed to start vsftpd.${RESET} Check logs: ${BRIGHT_CYAN}sudo journalctl -u vsftpd${RESET} or ${BRIGHT_CYAN}/var/log/vsftpd.log${RESET}"
                             
                             # Additional diagnostics
-                            echo -e "\n${CYAN}Diagnostic information:${NC}"
-                            echo -e "${YELLOW}1. Check systemd service status:${NC}"
+                            echo -e "\n${BRIGHT_CYAN}▹ Diagnostic information:${RESET}"
+                            echo -e "${BRIGHT_YELLOW}1. Check systemd service status:${RESET}"
                             sudo systemctl status vsftpd --no-pager
                             
-                            echo -e "\n${YELLOW}2. Common issues and solutions:${NC}"
+                            echo -e "\n${BRIGHT_YELLOW}2. Common issues and solutions:${RESET}"
                             echo -e "   - SSL certificate paths may be incorrect in /etc/vsftpd.conf"
                             echo -e "   - Port 21 may be in use by another service"
                             echo -e "   - Firewall may be blocking FTP ports (20, 21)"
@@ -220,39 +274,45 @@ handle_main_menu() {
                     fi
                 fi
             else
-                echo -e "${YELLOW}systemctl command not found. Cannot check vsftpd status automatically.${NC}"
-                echo -e "Please check manually, e.g., using ${CYAN}\'ps aux | grep vsftpd\'${NC} or service status commands."
+                echo -e "${BRIGHT_YELLOW}⚠ systemctl command not found. Cannot check vsftpd status automatically.${RESET}"
+                echo -e "Please check manually, e.g., using ${BRIGHT_CYAN}\'ps aux | grep vsftpd\'${RESET} or service status commands."
             fi
             pause_and_continue
             show_main_menu
             ;; 
         4) 
             clear
-            echo -e "${BLUE}--- ${BOLD}System Configuration Overview${NC} (from ${CYAN}$CONFIG_FILE${NC}) ---${NC}"
+            echo -e "${BLUE}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+            echo -e " ${MAGENTA}${BOLD}System Configuration Overview${RESET}"
+            echo -e "${BLUE}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+            
             if [ -f "$CONFIG_FILE" ]; then
+                echo -e "${GRAY}# Config file: ${BRIGHT_CYAN}$CONFIG_FILE${RESET}"
+                echo -e "${GRAY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
                 cat "$CONFIG_FILE"
+                echo -e "${GRAY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
             else
-                echo -e "${RED}Error:${NC} Configuration file ${CYAN}$CONFIG_FILE${NC} not found."
+                echo -e "${BRIGHT_RED}✗ Error:${RESET} Configuration file ${BRIGHT_CYAN}$CONFIG_FILE${RESET} not found."
             fi
-            echo -e "${BLUE}--- End of Configuration ---${NC}"
+            
             pause_and_continue
             show_main_menu
             ;; 
-        0) echo -e "${MAGENTA}Exiting Secure System Management. Goodbye!${NC}"; exit 0 ;; 
-        *) echo -e "${RED}Invalid choice. Please try again.${NC}"; sleep 1; show_main_menu ;; 
+        0) echo -e "${BRIGHT_MAGENTA}Exiting Secure System Management. Goodbye!${RESET}"; exit 0 ;; 
+        *) echo -e "${BRIGHT_RED}✗ Invalid choice. Please try again.${RESET}"; sleep 1; show_main_menu ;; 
     esac
 }
 
 handle_user_management_menu() {
     # Functions like create_new_user are sourced from user_management.sh
     case "$1" in
-        1) create_new_user ;; # Assuming create_new_user handles its own output/loading if needed
-        2) delete_existing_user ;; # Assuming delete_existing_user handles its own output/loading if needed
-        3) modify_existing_user ;; # Assuming modify_existing_user handles its own output/loading if needed
-        4) list_existing_users ;; 
+        1) clear; echo -e "${CYAN}▹ ${RESET}${BOLD}Creating New User${RESET}\n"; create_new_user ;; 
+        2) clear; echo -e "${CYAN}▹ ${RESET}${BOLD}Deleting Existing User${RESET}\n"; delete_existing_user ;; 
+        3) clear; echo -e "${CYAN}▹ ${RESET}${BOLD}Modifying Existing User${RESET}\n"; modify_existing_user ;; 
+        4) clear; echo -e "${CYAN}▹ ${RESET}${BOLD}Listing Users${RESET}\n"; list_existing_users ;; 
         9) show_main_menu ;; 
-        0) echo -e "${MAGENTA}Exiting Secure System Management. Goodbye!${NC}"; exit 0 ;; 
-        *) echo -e "${RED}Invalid choice. Please try again.${NC}"; sleep 1; show_user_management_menu ;; 
+        0) echo -e "${BRIGHT_MAGENTA}Exiting Secure System Management. Goodbye!${RESET}"; exit 0 ;; 
+        *) echo -e "${BRIGHT_RED}✗ Invalid choice. Please try again.${RESET}"; sleep 1; show_user_management_menu ;; 
     esac
     # After action (if not exit or back to main), pause and return to user menu
     if [[ "$1" -ge 1 && "$1" -le 4 ]]; then
@@ -268,35 +328,43 @@ handle_log_analysis_menu() {
     case "$1" in
         1) 
             clear
-            echo -e "${CYAN}Generating daily failed login report now...${NC}"
+            echo -e "${BLUE}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+            echo -e " ${MAGENTA}${BOLD}Generating Daily Failed Login Report${RESET}"
+            echo -e "${BLUE}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+            echo -e "${CYAN}▹ ${RESET}${BOLD}Starting log analysis process...${RESET}"
+            
             if [ -x "$LOG_ANALYSIS_SCRIPT" ]; then
                 sudo "$LOG_ANALYSIS_SCRIPT" &
                 local pid=$!
-                show_loading_animation $pid
-                wait $pid # Wait for the script to complete
-                echo -e "${GREEN}Log analysis script execution finished.${NC} Report should be in ${CYAN}$SECURITY_REPORT_DIR${NC}"
+                show_loading_animation $pid "Analyzing log files"
+                echo -e "${BRIGHT_GREEN}✓ Log analysis complete.${RESET} Report saved to: ${BRIGHT_CYAN}$SECURITY_REPORT_DIR${RESET}"
             else
-                echo -e "${RED}Error:${NC} Log analysis script ${CYAN}$LOG_ANALYSIS_SCRIPT${NC} is not executable or not found." >&2
-                echo -e "Please ensure it exists and run: ${CYAN}sudo chmod +x $LOG_ANALYSIS_SCRIPT${NC}"
+                echo -e "${BRIGHT_RED}✗ Error:${RESET} Log analysis script ${BRIGHT_CYAN}$LOG_ANALYSIS_SCRIPT${RESET} is not executable or not found." >&2
+                echo -e "Please ensure it exists and run: ${BRIGHT_CYAN}sudo chmod +x $LOG_ANALYSIS_SCRIPT${RESET}"
             fi
             ;;
         2) 
             clear
-            echo -e "${CYAN}Displaying the latest failed login report...${NC}"
+            echo -e "${BLUE}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+            echo -e " ${MAGENTA}${BOLD}Viewing Latest Failed Login Report${RESET}"
+            echo -e "${BLUE}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+            echo -e "${CYAN}▹ ${RESET}Searching for the latest report..."
+            
             latest_report=$(ls -1t "$SECURITY_REPORT_DIR"/failed_logins_report_*.txt 2>/dev/null | head -n 1)
             if [ -n "$latest_report" ] && [ -f "$latest_report" ]; then
-                echo -e "${GREEN}Latest report:${NC} ${CYAN}$latest_report${NC}"
-                echo -e "${BLUE}--- Report Content ---${NC}"
+                echo -e "${BRIGHT_GREEN}✓ Found:${RESET} ${BRIGHT_CYAN}$latest_report${RESET}"
+                echo -e "${GRAY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
                 cat "$latest_report"
-                echo -e "${BLUE}--- End of Report ---${NC}"
+                echo -e "${GRAY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
             else 
-                echo -e "${YELLOW}No reports found in ${CYAN}$SECURITY_REPORT_DIR${NC} (expected: ${CYAN}$SECURITY_REPORT_DIR/failed_logins_report_YYYY-MM-DD.txt${NC})."
+                echo -e "${BRIGHT_YELLOW}⚠ No reports found${RESET} in ${BRIGHT_CYAN}$SECURITY_REPORT_DIR${RESET}"
+                echo -e "Expected file pattern: ${BRIGHT_CYAN}$SECURITY_REPORT_DIR/failed_logins_report_YYYY-MM-DD.txt${RESET}"
                 echo -e "You might need to generate one first (Option 1)."
             fi
             ;;
         9) show_main_menu ;; 
-        0) echo -e "${MAGENTA}Exiting Secure System Management. Goodbye!${NC}"; exit 0 ;; 
-        *) echo -e "${RED}Invalid choice. Please try again.${NC}"; sleep 1; show_log_analysis_menu ;; 
+        0) echo -e "${BRIGHT_MAGENTA}Exiting Secure System Management. Goodbye!${RESET}"; exit 0 ;; 
+        *) echo -e "${BRIGHT_RED}✗ Invalid choice. Please try again.${RESET}"; sleep 1; show_log_analysis_menu ;; 
     esac
     if [[ "$1" -ge 1 && "$1" -le 2 ]]; then
         pause_and_continue
@@ -304,6 +372,26 @@ handle_log_analysis_menu() {
     if [[ "$1" != "9" && "$1" != "0" ]]; then
       show_log_analysis_menu
     fi
+}
+
+# Helper function for yes/no questions (for FTP section)
+ask_yes_no() {
+    local question="$1"
+    local default_answer="${2:-n}"
+    local prompt
+    
+    if [ "$default_answer" = "y" ]; then
+        prompt="Y/n"
+        default="Y"
+    else
+        prompt="y/N"
+        default="N"
+    fi
+    
+    read -r -p "$(echo -e "${CYAN}▸${RESET} $question [$prompt]: ")" answer
+    answer=${answer:-$default}
+    
+    [[ $answer =~ ^[Yy]$ ]]
 }
 
 # --- Main Script Execution ---
