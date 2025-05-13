@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Source the installer UI components
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+source "$SCRIPT_DIR/scripts/installer_ui.sh"
+
 # Secure User & Log Management System Installation Script
 
 # --- Configuration ---
@@ -68,101 +72,95 @@ ask_yes_no() {
 # --- Pre-flight Checks ---
 
 check_root() {
+    show_header
+    info "Checking root privileges..."
     if [ "$(id -u)" -ne 0 ]; then
-        echo_error "This installation script must be run as root or with sudo privileges."
+        error "This installation script must be run as root or with sudo privileges."
         exit 1
     fi
-    echo_info "Running as root. Proceeding with installation."
+    success "Running with root privileges"
+    sleep 1
 }
 
 check_dependencies() {
-    echo_info "Checking for essential dependencies (vsftpd, openssl, cron, mailutils if emailing)..."
-    local missing_pkg=0
-    if ! command -v vsftpd &> /dev/null; then
-        echo_warn "vsftpd is not installed. It is required for the Secure FTP Server."
-        if ask_yes_no "Do you want to install vsftpd now?" "y"; then
-            apt update && apt install -y vsftpd || { echo_error "Failed to install vsftpd."; exit 1; }
+    show_section "Dependencies Check"
+    info "Checking system dependencies..."
+    
+    local deps=("vsftpd" "openssl" "cron" "mail")
+    local missing=()
+    
+    for dep in "${deps[@]}"; do
+        echo -ne "${CYAN}▹ ${RESET}Checking for ${BRIGHT_CYAN}$dep${RESET}... "
+        if ! command -v "$dep" &> /dev/null; then
+            echo -e "${BRIGHT_RED}✗${RESET}"
+            missing+=("$dep")
         else
-            echo_error "vsftpd installation aborted by user. FTP setup will be skipped."
-            SKIP_FTP_SETUP=true
+            echo -e "${BRIGHT_GREEN}✓${RESET}"
         fi
-    fi
-    if ! command -v openssl &> /dev/null; then
-        echo_warn "openssl is not installed. It is required for generating SSL certificates."
-        if ask_yes_no "Do you want to install openssl now?" "y"; then
-            apt update && apt install -y openssl || { echo_error "Failed to install openssl."; exit 1; }
+        sleep 0.2
+    done
+    
+    if [ ${#missing[@]} -gt 0 ]; then
+        warning "Missing dependencies: ${missing[*]}"
+        prompt "Install missing dependencies? (Y/n): "
+        read -r install_deps
+        if [[ "$install_deps" =~ ^[Yy]$ ]] || [[ -z "$install_deps" ]]; then
+            (
+                apt update && apt install -y "${missing[@]}"
+            ) &
+            show_spinner $! "Installing dependencies"
         else
-            echo_error "openssl installation aborted. SSL certificate generation for FTP will fail if FTP setup proceeds."
+            warning "Proceeding without installing dependencies. Some features may not work."
         fi
+    else
+        success "All dependencies are satisfied"
     fi
-    if ! command -v crontab &> /dev/null || ! systemctl is-active --quiet cron; then 
-        echo_warn "cron is not installed or not running. It is required for scheduled log analysis."
-        if ask_yes_no "Do you want to install/enable cron now?" "y"; then
-            apt update && apt install -y cron && systemctl enable --now cron || { echo_error "Failed to install/enable cron."; exit 1; }
-        else
-            echo_error "cron setup aborted by user. Scheduled tasks will not run automatically via this installer."
-            SKIP_CRON_SETUP=true
-        fi
-    fi
-    echo_info "Basic dependency check complete."
 }
 
 # --- Installation Steps ---
 
 create_directories() {
-    echo_info "Creating system directories under $DEST_DIR..."
-    mkdir -p "$SCRIPTS_DIR"
-    if [ $? -ne 0 ]; then echo_error "Failed to create $SCRIPTS_DIR."; exit 1; fi
-    mkdir -p "$CONFIG_DIR_DEST"
-    if [ $? -ne 0 ]; then echo_error "Failed to create $CONFIG_DIR_DEST."; exit 1; fi
-    # Ensure ascii_art.txt directory exists if it is outside scripts dir
-    local ascii_art_path_in_config=$(grep -oP 'ASCII_ART_FILE=\"\K[^\"]*\"' "./scripts/secure_system.sh" 2>/dev/null | sed "s/\"//g")
-    local ascii_art_dest_path="$DEST_DIR/$(basename "$ascii_art_path_in_config")"
-    if [[ "$ascii_art_path_in_config" == "../"* ]]; then # if it is like ../ascii_art.txt
-        ascii_art_dest_path="$DEST_DIR/$(basename "$ascii_art_path_in_config")"
-    else # if it is like scripts/ascii_art.txt or just ascii_art.txt (relative to scripts dir)
-        ascii_art_dest_path="$SCRIPTS_DIR/$(basename "$ascii_art_path_in_config")"
-    fi
-
-    mkdir -p "/var/log/security_reports" 
-    if [ $? -ne 0 ]; then echo_error "Failed to create /var/log/security_reports."; exit 1; fi
-    chmod 750 "/var/log/security_reports"
-    chown root:adm "/var/log/security_reports" 2>/dev/null || chown root:root "/var/log/security_reports" 2>/dev/null
-    local user_mgmt_log_path=$(grep -oP '^USER_MGMT_LOG=\"\K[^\"]*\"' "./scripts/config.sh" 2>/dev/null)
-    user_mgmt_log_path=${user_mgmt_log_path:-/var/log/user_mgmt.log}
-    if [ "$(dirname "$user_mgmt_log_path")" != "/var/log" ] && [ ! -d "$(dirname "$user_mgmt_log_path")" ]; then 
-        mkdir -p "$(dirname "$user_mgmt_log_path")"
-        chmod 750 "$(dirname "$user_mgmt_log_path")"
-        chown root:adm "$(dirname "$user_mgmt_log_path")" 2>/dev/null || chown root:root "$(dirname "$user_mgmt_log_path")" 2>/dev/null
-    fi
-    echo_info "System directories created/ensured."
+    show_section "Creating System Structure"
+    
+    local dirs=(
+        "$SCRIPTS_DIR"
+        "$CONFIG_DIR_DEST"
+        "/var/log/security_reports"
+    )
+    
+    local total_dirs=${#dirs[@]}
+    local current=0
+    
+    for dir in "${dirs[@]}"; do
+        ((current++))
+        info "Creating directory: $dir"
+        mkdir -p "$dir" &
+        show_spinner $! "Creating $dir"
+        show_progress $current $total_dirs
+    done
+    
+    success "Directory structure created"
 }
 
 copy_files() {
-    echo_info "Copying scripts and configuration files..."
-    cp ./scripts/*.sh "$SCRIPTS_DIR/"
-    if [ $? -ne 0 ]; then echo_error "Failed to copy scripts to $SCRIPTS_DIR."; exit 1; fi
-    chmod +x "$SCRIPTS_DIR"/*.sh
-    if [ $? -ne 0 ]; then echo_error "Failed to set execute permissions on scripts."; exit 1; fi
-
-    # Copy ASCII art if it exists in the source package
+    show_section "Installing System Files"
+    show_loading_bar 2 "Preparing file transfer"
+    
+    info "Copying scripts..."
+    cp ./scripts/*.sh "$SCRIPTS_DIR/" &
+    show_spinner $! "Copying script files"
+    
+    info "Setting permissions..."
+    chmod +x "$SCRIPTS_DIR"/*.sh &
+    show_spinner $! "Setting execute permissions"
+    
     if [ -f ./ascii_art.txt ]; then
-        cp ./ascii_art.txt "$DEST_DIR/ascii_art.txt"
-        if [ $? -ne 0 ]; then echo_warn "Failed to copy ascii_art.txt to $DEST_DIR."; fi
-    elif [ -f ./scripts/ascii_art.txt ]; then # Check if it was moved into scripts for some reason
-        cp ./scripts/ascii_art.txt "$SCRIPTS_DIR/ascii_art.txt"
-        if [ $? -ne 0 ]; then echo_warn "Failed to copy ascii_art.txt to $SCRIPTS_DIR."; fi
-    else
-        echo_warn "ascii_art.txt not found in source package. Main script might show a warning."
+        info "Installing ASCII art..."
+        cp ./ascii_art.txt "$DEST_DIR/ascii_art.txt" &
+        show_spinner $! "Copying ASCII art"
     fi
-
-    cp "$CONFIG_DIR_SRC"/logrotate_* "$CONFIG_DIR_DEST/"
-    if [ $? -ne 0 ]; then echo_error "Failed to copy logrotate templates to $CONFIG_DIR_DEST."; exit 1; fi
-
-    sed "s|# SYS_BASE_DIR=.*|SYS_BASE_DIR=\"$DEST_DIR\"|" "$SCRIPTS_DIR/config.sh" > "$SCRIPTS_DIR/config.sh.tmp" && mv "$SCRIPTS_DIR/config.sh.tmp" "$SCRIPTS_DIR/config.sh"
-    if [ $? -ne 0 ]; then echo_error "Failed to set SYS_BASE_DIR in config.sh."; exit 1; fi
-
-    echo_info "Files copied and base permissions set."
+    
+    success "File installation complete"
 }
 
 configure_vsftpd() {
@@ -395,38 +393,39 @@ create_symlink() {
 # --- Main Installation Logic ---
 
 main() {
-    echo_info "Starting Secure User & Log Management System installation..."
-    
+    trap 'echo -e "\n${BRIGHT_RED}Installation interrupted.${RESET}"; exit 1' INT
+
+    show_header
+    echo -e "${BRIGHT_WHITE}Welcome to the Secure User & Log Management System Installation${RESET}"
+    echo
+    sleep 1
+
     check_root
     check_dependencies
+    
+    show_loading_bar 1 "Preparing installation environment"
     
     create_directories
     copy_files
     
+    show_section "Configuring Services"
     configure_vsftpd
     configure_logrotate
     configure_cron_jobs
     
+    show_section "Bonus Features Setup"
     configure_bonus_features_interactive
-    create_symlink # Add symlink creation here
+    create_symlink
 
-    echo -e "\n${BLUE}${BOLD}-----------------------------------------------------------------${NC}"
-    echo -e " ${MAGENTA}${BOLD}Secure User & Log Management System Installation Complete!${NC} "
-    echo -e "${BLUE}${BOLD}-----------------------------------------------------------------${NC}"
-    if [ -L "$SYMLINK_PATH" ]; then
-      echo_info "You can now run the tool using the command: ${CYAN}sudo seclogs${NC}"
-    else
-      echo_info "The main interface script: ${CYAN}$SCRIPTS_DIR/secure_system.sh${NC}"
-      echo_info "Run with: ${CYAN}sudo $SCRIPTS_DIR/secure_system.sh${NC}"
-    fi
-    echo_info "Configuration: ${CYAN}$SCRIPTS_DIR/config.sh${NC} (Review for bonus feature settings)"
-    echo_info "User management logs: ${CYAN}$(grep -oP '^USER_MGMT_LOG=\"\K[^\"]*\"' "$SCRIPTS_DIR/config.sh" 2>/dev/null)${NC}"
-    echo_info "Security reports: ${CYAN}$(grep -oP '^SECURITY_REPORT_DIR=\"\K[^\"]*\"' "$SCRIPTS_DIR/config.sh" 2>/dev/null)${NC}"
-    echo_info "Cron job for log analysis should be active. Verify with 'sudo crontab -l'."
-    echo_info "If FTP is used, ensure firewall rules are set for ports 20, 21 and passive range."
-    echo_info "Installation log (this output) is not saved. Please copy if needed."
+    show_section "Installation Complete"
+    success "Secure User & Log Management System has been installed!"
+    echo
+    info "Main interface: ${BRIGHT_CYAN}sudo seclogs${RESET}"
+    info "Configuration: ${BRIGHT_CYAN}$SCRIPTS_DIR/config.sh${RESET}"
+    info "User logs: ${BRIGHT_CYAN}$USER_MGMT_LOG${RESET}"
+    info "Security reports: ${BRIGHT_CYAN}$SECURITY_REPORT_DIR${RESET}"
+    echo
+    echo -e "${BRIGHT_GREEN}Thank you for installing Secure User & Log Management System!${RESET}"
 }
 
 main
-
-exit 0
